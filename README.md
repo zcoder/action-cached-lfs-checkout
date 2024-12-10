@@ -15,7 +15,7 @@ when used with
 
 ```yaml
 - name: Checkout code
-  uses: actions/checkout@v2
+  uses: actions/checkout@v4
   with:
     lfs: true
 ```
