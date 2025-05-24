@@ -7,6 +7,14 @@ branding:
   color: "green"
 
 inputs:
+  lfs_active:
+    description: "Whether to download Git-LFS files"
+    required: false
+    default: "true"
+  lfs_url:
+    description: "The LFS server URL to fetch the repository from."
+    required: false
+    default: ""
   include:
     description: "Explicitly include files for LFS"
     required: false
@@ -73,6 +81,7 @@ runs:
         persist-credentials: ${{ inputs.persist-credentials }}
 
     - name: Create LFS file list
+      if: ${{ inputs.lfs_active == 'true' }}
       run: |
         git lfs ls-files --long --include  "${{ inputs.include }}" --exclude  "${{ inputs.exclude }}" | cut -d ' ' -f1 > .lfs-assets-id-unsorted
         git submodule foreach git lfs ls-files --long --include  "${{ inputs.include }}" --exclude  "${{ inputs.exclude }}" | cut -d ' ' -f1 >> .lfs-assets-id-unsorted
@@ -80,6 +89,7 @@ runs:
       shell: bash
 
     - name: Create Submodule LFS Cache Paths
+      if: ${{ inputs.lfs_active == 'true' }}
       run: |
         CACHE_PATHS=""
 
@@ -95,6 +105,7 @@ runs:
       shell: bash
 
     - name: Restore LFS cache
+      if: ${{ inputs.lfs_active == 'true' }}
       uses: actions/cache@v4
       id: lfs-cache
       with:
@@ -103,8 +114,16 @@ runs:
           ${{ steps.cache-paths.outputs.CACHE_PATHS }}
         key: lfs-${{ hashFiles('.lfs-assets-id') }}-v2
         enableCrossOsArchive: ${{ inputs.enableCrossOsArchive }}
+        restore-keys: |
+          lfs-
+
+    - name: Override Git LFS URL
+      if: ${{ inputs.lfs_active == 'true' && inputs.lfs_url != '' }}
+      run: git config --local lfs.url "${{ inputs.lfs_url }}"
+      shell: bash
 
     - name: Git LFS Pull
+      if: ${{ inputs.lfs_active == 'true' }}
       run: |
         git lfs pull --include  "${{ inputs.include }}" --exclude  "${{ inputs.exclude }}"
         git submodule foreach git lfs pull --include  "${{ inputs.include }}" --exclude  "${{ inputs.exclude }}"
@@ -112,7 +131,8 @@ runs:
 
     # Don't leave behind temp files in case build system checks for dirty workspace
     - name: Cleanup Temp Files
+      if: ${{ inputs.lfs_active == 'true' }}
       run: |
-        rm .lfs-assets-id-unsorted
-        rm .lfs-assets-id
+        rm -f .lfs-assets-id-unsorted
+        rm -f .lfs-assets-id
       shell: bash
